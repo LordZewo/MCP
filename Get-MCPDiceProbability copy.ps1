@@ -23,13 +23,13 @@ function Get-MCPDiceProbability {
     # Define the success criteria based on the attack or defense rules
     if ($Attack) {
         if($CountSkullAsSuccess) {
-            $successCriteria = @('Hit','Wild','Critical', 'Skull')
+            $successCriteria = @('Hit', 'Hit','Wild','Critical', 'Skull')
         } else {
-            $successCriteria = @('Hit','Wild','Critical')
+            $successCriteria = @('Hit', 'Hit','Wild','Critical')
         }
     } elseif ($Defense) {
         if ($BlockOnBlanks) {
-            $successCriteria = @('Block', 'Blank', 'Wild', 'Critical')
+            $successCriteria = @('Block', 'Blank', 'Blank', 'Wild', 'Critical')
         }
         if($CountSkullAsSuccess){
             $successCriteria = @('Block', 'Wild', 'Critical', 'Skull')
@@ -56,11 +56,15 @@ function Get-MCPDiceProbability {
     # Calculate the probability of failing all rolls before re-rolls
     $firstRollFailureProbability = 1 - $firstRollSuccessProbability
 
+    # Calculate the probability of succeeding all re-rolls
+    if ($ReRoll -gt 0 -and $ReRollSkull) {
+        $reRollSuccessProbability = ($successProbability + $criticalProbability * $successProbability + $failureProbability * $successProbability) * $ReRoll
+    } else {
+        $reRollSuccessProbability = ($successProbability + $criticalProbability * $successProbability) * $ReRoll
+    }
+
     # Calculate the probability of failing all re-rolls
     $reRollFailureProbability = [Math]::Pow($failureProbability, $ReRoll)
-
-    # Calculate the probability of succeeding at least once after re-rolls
-    $reRollSuccessProbability = 1 - $reRollFailureProbability
 
     # Calculate the probability of succeeding at least once in the entire roll
     $totalSuccessProbability = $firstRollSuccessProbability + $reRollSuccessProbability * $firstRollFailureProbability
@@ -68,20 +72,18 @@ function Get-MCPDiceProbability {
     # Calculate the expected number of successes in the entire roll
     $expectedSuccessCount = $totalSuccessProbability * $NumberOfDice
 
-    # Format the output as a percentage
-    $totalSuccessProbabilityPercent = '{0:P2}' -f $totalSuccessProbability
-    $expectedSuccessCountPercent = '{0:N2}' -f $expectedSuccessCount
-    $firstRollFailureProbabilityPercent = '{0:P2}' -f $firstRollFailureProbability
+    # Format the output as a fraction
+    $totalSuccessProbabilityFraction = [Math]::Round($totalSuccessProbability * $NumberOfDice, 0), '/', $NumberOfDice -join ''
+    $firstRollFailureProbabilityFraction = [Math]::Round($firstRollFailureProbability * $NumberOfDice, 0), '/', $NumberOfDice -join ''
+
 
     # Return the results
     [PSCustomObject]@{
-        SuccessCount = $totalSuccessProbability
-        TotalSuccessProbability = $totalSuccessProbabilityPercent
+        SuccessCount = $totalSuccessProbabilityFraction
         ExpectedSuccess = $expectedSuccessCount
-        ExpectedSuccessCount = $expectedSuccessCountPercent
-        FirstRollFailureCount = $firstRollFailureProbability
-        FirstRollFailureProbability = $firstRollFailureProbabilityPercent
+        FirstRollFailureCount = $firstRollFailureProbabilityFraction
     }
+
 # Enables strict mode, which helps detect common coding errors
 Set-StrictMode -Version Latest
 # Sets the Tab key to the MenuComplete function, which provides tab-completion for parameter names
